@@ -6,7 +6,7 @@ require('dotenv').config()
 const port = process.env.PORT || 5000;
 
 app.use(cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "https://postify-auth.web.app", "https://postify-auth.firebaseapp.com"],
     credentials: true
 }))
 app.use(express.json())
@@ -36,7 +36,7 @@ async function run() {
 
         app.post("/users", async (req, res) => {
             const user = req.body;
-            const query = { email: user.email}
+            const query = { email: user.email }
             const isExist = await userCollection.findOne(query);
             if (isExist) {
                 return res.send({ message: 'User Already Exists' })
@@ -45,9 +45,26 @@ async function run() {
             res.send(result)
         })
 
+        app.get("/user/:username", async (req, res) => {
+            const username = req.params.username;            
+            const result = await userCollection.findOne({ username: username });
+            if(result){
+                res.send([result])
+            }
+            // console.log(result);
+            res.send(result)
+        })
+
+        app.get("/users/:email", async (req, res) => {
+            const email = req.params.email;            
+            const result = await userCollection.findOne({ email });
+            console.log(result);
+            res.send(result)
+        })
+
 
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
