@@ -61,6 +61,12 @@ async function run() {
             res.send(result)
         })
 
+        app.get("/chk-user/:username", async (req, res) => {
+            const username = req.params.username;
+            const result = await userCollection.findOne({ username: username });
+            res.send(result)
+        })
+
         app.post("/users", async (req, res) => {
             const user = req.body;
             const query = { email: user.email }
@@ -72,6 +78,7 @@ async function run() {
             res.send(result)
         })
 
+        // get user data through searching by username
         app.get("/user/:username", async (req, res) => {
             const username = req.params.username;
             const result = await userCollection.findOne({ username: username });
@@ -83,7 +90,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/users/:email", async (req, res) => {
+        app.get("/users/:email", verifyToken, async (req, res) => {
             const email = req.params.email;
             const result = await userCollection.findOne({ email });
             res.send(result)
@@ -96,7 +103,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/request/:username", async (req, res) => {
+        app.get("/request/:username", verifyToken, async (req, res) => {
             const username = req.params.username;
             const result = await requestCollection.find({ receiver_username: username, status: 'Pending' }).toArray();
             res.send(result)
@@ -122,7 +129,7 @@ async function run() {
             return
         })
 
-        app.patch("/accept-request", async (req, res) => {
+        app.patch("/accept-request", verifyToken, async (req, res) => {
             const { req_email, rcv_email } = req.body;
 
             const requester = await userCollection.findOne({ email: req_email });
@@ -153,7 +160,7 @@ async function run() {
             res.send({ result1, result2, result3 })
         })
 
-        app.patch("/cancel-request", async (req, res) => {
+        app.patch("/cancel-request", verifyToken, async (req, res) => {
             const { req_email, rcv_email } = req.body;
 
             const requester = await userCollection.findOne({ email: req_email });
