@@ -2,6 +2,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express')
 const app = express()
 const cors = require('cors')
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -30,7 +31,32 @@ async function run() {
         const userCollection = client.db('linknestDB').collection('users')
         const requestCollection = client.db('linknestDB').collection('requests')
 
-        app.get("/users", async (req, res) => {
+        // jwt token API
+        app.post("/jwt", async (req, res) => {
+            const user = req.body;
+            // console.log(user);
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ token })
+        })
+
+        const verifyToken = async (req, res, next) => {
+            const auth = req.headers.authorization;
+            if (!auth) {
+                return res.status(401).send({ message: 'not authorized' })
+            }
+
+            const token = req.headers.authorization.split(' ')[1];
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+                if (error) {
+                    return res.status(401).send({ message: 'not authorized' })
+                }
+                console.log('value token: ', decoded);
+                req.decoded = decoded;
+                next();
+            })
+        };
+
+        app.get("/users", verifyToken, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result)
         })
