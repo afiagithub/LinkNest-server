@@ -85,12 +85,12 @@ async function run() {
                 return res.status(404).json({ error: 'Sender or Receiver not found' });
             }
             const result1 = await userCollection.updateOne(
-                { _id: new ObjectId(requester._id) },
-                { $push: { request_list: receiver.username } }
+                { _id: new ObjectId(requester._id) }, //query
+                { $push: { request_list: receiver.username } } // adding receiver's username to requester's request list
             );
             const result2 = await userCollection.updateOne(
-                { _id: new ObjectId(receiver._id) },
-                { $push: { request_list: requester.username } }
+                { _id: new ObjectId(receiver._id) }, //query
+                { $push: { request_list: requester.username } } // adding requester's username to receiver's request list
             );
             res.send({ result1, result2 })
             return
@@ -125,7 +125,33 @@ async function run() {
                 { $set: { status: 'Accepted' } }
             );
             res.send({ result1, result2, result3 })
-            return
+        })
+
+        app.patch("/cancel-request", async (req, res) => {
+            const { req_email, rcv_email } = req.body;
+
+            const requester = await userCollection.findOne({ email: req_email });
+            const receiver = await userCollection.findOne({ email: rcv_email });
+            if (!requester || !receiver) {
+                return res.status(404).json({ error: 'Sender or Receiver not found' });
+            }
+
+            const result1 = await userCollection.updateOne(
+                { _id: new ObjectId(requester._id) }, //query
+                { $pull: { request_list: receiver.username } } // removing receiver's username from requester's request list
+                
+            );
+            const result2 = await userCollection.updateOne(
+                { _id: new ObjectId(receiver._id) }, //query
+                { $pull: { request_list: requester.username } }// removing requester's username from receiver's request list
+                
+            );
+
+            const result3 = await requestCollection.updateOne(
+                { requester_email: req_email, receiver_email: rcv_email },
+                { $set: { status: 'Rejected' } }
+            );
+            res.send({ result1, result2, result3 })
         })
 
         // Send a ping to confirm a successful connection
