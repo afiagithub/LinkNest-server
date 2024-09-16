@@ -47,9 +47,9 @@ async function run() {
         })
 
         app.get("/user/:username", async (req, res) => {
-            const username = req.params.username;            
+            const username = req.params.username;
             const result = await userCollection.findOne({ username: username });
-            if(result){
+            if (result) {
                 res.send([result])
             }
             // console.log(result);
@@ -57,7 +57,7 @@ async function run() {
         })
 
         app.get("/users/:email", async (req, res) => {
-            const email = req.params.email;            
+            const email = req.params.email;
             const result = await userCollection.findOne({ email });
             console.log(result);
             res.send(result)
@@ -68,6 +68,25 @@ async function run() {
             const requestData = req.body;
             const result = await requestCollection.insertOne(requestData);
             res.send(result)
+        })
+
+        app.patch("/request-list", async (req, res) => {
+            const { rcv_username, send_username } = req.body;
+            // console.log(rcv_username, send_username);
+            const requester = await userCollection.findOne({ username: send_username });
+            const receiver = await userCollection.findOne({ username: rcv_username });            
+            if (!requester || !receiver) {
+                return res.status(404).json({ error: 'Sender or Receiver not found' });
+            }
+            const result1 = await userCollection.updateOne(
+                { username: send_username },
+                { $push: { request_list: receiver.username } }
+            );
+            const result2 = await userCollection.updateOne(
+                { username: rcv_username },
+                { $push: { request_list: requester.username } }
+            );
+            res.send({ result1, result2 })
         })
 
 
