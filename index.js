@@ -51,6 +51,7 @@ async function run() {
             const result = await userCollection.findOne({ username: username });
             if (result) {
                 res.send([result])
+                return
             }
             // console.log(result);
             res.send(result)
@@ -59,7 +60,6 @@ async function run() {
         app.get("/users/:email", async (req, res) => {
             const email = req.params.email;
             const result = await userCollection.findOne({ email });
-            console.log(result);
             res.send(result)
         })
 
@@ -70,25 +70,63 @@ async function run() {
             res.send(result)
         })
 
+        app.get("/request/:username", async (req, res) => {
+            const username = req.params.username;
+            const result = await requestCollection.find({ receiver_username: username, status: 'Pending' }).toArray();
+            res.send(result)
+        })
+
         app.patch("/request-list", async (req, res) => {
             const { rcv_username, send_username } = req.body;
             // console.log(rcv_username, send_username);
             const requester = await userCollection.findOne({ username: send_username });
-            const receiver = await userCollection.findOne({ username: rcv_username });            
+            const receiver = await userCollection.findOne({ username: rcv_username });
             if (!requester || !receiver) {
                 return res.status(404).json({ error: 'Sender or Receiver not found' });
             }
             const result1 = await userCollection.updateOne(
-                { username: send_username },
+                { _id: new ObjectId(requester._id) },
                 { $push: { request_list: receiver.username } }
             );
             const result2 = await userCollection.updateOne(
-                { username: rcv_username },
+                { _id: new ObjectId(receiver._id) },
                 { $push: { request_list: requester.username } }
             );
             res.send({ result1, result2 })
+            return
         })
 
+        app.patch("/accept-request", async (req, res) => {
+            const { req_email, rcv_email } = req.body;
+
+            const requester = await userCollection.findOne({ email: req_email });
+            const receiver = await userCollection.findOne({ email: rcv_email });
+            if (!requester || !receiver) {
+                return res.status(404).json({ error: 'Sender or Receiver not found' });
+            }
+
+            const result1 = await userCollection.updateOne(
+                { _id: new ObjectId(requester._id) }, //query
+                {
+                    $addToSet: { friend_list: receiver.username }, // adding receiver's username to requester's friend list
+                    $pull: { request_list: receiver.username } // removing receiver's username from requester's request list
+                }
+            );
+            const result2 = await userCollection.updateOne(
+                { _id: new ObjectId(receiver._id) }, //query
+                {
+                    $addToSet: { friend_list: requester.username }, // adding requester's username to receiver's friend list
+                    $pull: { request_list: requester.username } // removing requester's username from receiver's request list
+                }
+            );
+
+            const result3 = await requestCollection.updateOne(
+                { requester_email: req_email, receiver_email: rcv_email },
+                { $set: { status: 'Accepted' } }
+            );
+            res.send({ result1, result2, result3 })
+            return
+        })
 
         // Send a ping to confirm a successful connection
         // await client.db("admin").command({ ping: 1 });
