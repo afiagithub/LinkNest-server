@@ -28,6 +28,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         // await client.connect();
         const userCollection = client.db('linknestDB').collection('users')
+        const requestCollection = client.db('linknestDB').collection('requests')
 
         app.get("/users", async (req, res) => {
             const result = await userCollection.find().toArray();
@@ -59,6 +60,13 @@ async function run() {
             const email = req.params.email;            
             const result = await userCollection.findOne({ email });
             console.log(result);
+            res.send(result)
+        })
+
+        // Friend Request APIs
+        app.post('/request', async (req, res) => {
+            const requestData = req.body;
+            const result = await requestCollection.insertOne(requestData);
             res.send(result)
         })
 
