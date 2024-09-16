@@ -96,6 +96,20 @@ async function run() {
             res.send(result)
         })
 
+        app.put("/users/:id", async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updatedUser = req.body;
+            const updatedUserData = {
+              $set: {
+                ...updatedUser
+              }
+            }
+            const result = await userCollection.updateOne(filter, updatedUserData, options);
+            res.send(result)
+          })
+
         // Friend Request APIs
         app.post('/request', async (req, res) => {
             const requestData = req.body;
@@ -185,6 +199,18 @@ async function run() {
                 { $set: { status: 'Rejected' } }
             );
             res.send({ result1, result2, result3 })
+        })
+
+        app.get("/friend/:id", async(req, res) => {
+            const id = req.params.id;
+            const user = await userCollection.findOne({ _id: new ObjectId(id) });
+
+            if (!user || !user.friend_list) {
+                return res.status(404).json({ error: 'User not found or no friends' });
+            }
+
+            const friendsData = await userCollection.find({username: { $in: user.friend_list }}).toArray();
+            res.send(friendsData);
         })
 
         // Send a ping to confirm a successful connection
