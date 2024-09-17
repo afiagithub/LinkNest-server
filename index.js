@@ -102,13 +102,13 @@ async function run() {
             const options = { upsert: true };
             const updatedUser = req.body;
             const updatedUserData = {
-              $set: {
-                ...updatedUser
-              }
+                $set: {
+                    ...updatedUser
+                }
             }
             const result = await userCollection.updateOne(filter, updatedUserData, options);
             res.send(result)
-          })
+        })
 
         // Friend Request APIs
         app.post('/request', async (req, res) => {
@@ -133,11 +133,11 @@ async function run() {
             }
             const result1 = await userCollection.updateOne(
                 { _id: new ObjectId(requester._id) }, //query
-                { $push: { request_list: receiver.username } } // adding receiver's username to requester's request list
+                { $addToSet: { request_list: receiver.username } } // adding receiver's username to requester's request list
             );
             const result2 = await userCollection.updateOne(
                 { _id: new ObjectId(receiver._id) }, //query
-                { $push: { request_list: requester.username } } // adding requester's username to receiver's request list
+                { $addToSet: { request_list: requester.username } } // adding requester's username to receiver's request list
             );
             res.send({ result1, result2 })
             return
@@ -186,14 +186,13 @@ async function run() {
             const result1 = await userCollection.updateOne(
                 { _id: new ObjectId(requester._id) }, //query
                 { $pull: { request_list: receiver.username } } // removing receiver's username from requester's request list
-                
+
             );
             const result2 = await userCollection.updateOne(
                 { _id: new ObjectId(receiver._id) }, //query
                 { $pull: { request_list: requester.username } }// removing requester's username from receiver's request list
-                
-            );
 
+            );
             const result3 = await requestCollection.updateOne(
                 { requester_email: req_email, receiver_email: rcv_email },
                 { $set: { status: 'Rejected' } }
@@ -201,7 +200,7 @@ async function run() {
             res.send({ result1, result2, result3 })
         })
 
-        app.get("/friend/:id", async(req, res) => {
+        app.get("/friend/:id", async (req, res) => {
             const id = req.params.id;
             const user = await userCollection.findOne({ _id: new ObjectId(id) });
 
@@ -209,7 +208,7 @@ async function run() {
                 return res.status(404).json({ error: 'User not found or no friends' });
             }
 
-            const friendsData = await userCollection.find({username: { $in: user.friend_list }}).toArray();
+            const friendsData = await userCollection.find({ username: { $in: user.friend_list } }).toArray();
             res.send(friendsData);
         })
 
@@ -224,14 +223,47 @@ async function run() {
             const result1 = await userCollection.updateOne(
                 { _id: new ObjectId(user._id) }, //query
                 { $pull: { friend_list: friend.username } } // removing friend's username from user's friend list
-                
+
             );
             const result2 = await userCollection.updateOne(
                 { _id: new ObjectId(friend._id) }, //query
                 { $pull: { friend_list: user.username } }// removing user's username from friend's friend list
-                
+
             );
             res.send({ result1, result2 })
+        })
+
+        app.get("/recommend/:id", async (req, res) => {
+            const id = req.params.id;
+            const user = await userCollection.findOne({ _id: new ObjectId(id) });
+
+            if (!user || !user.friend_list) {
+                return res.status(404).json({ error: 'User not found or no friends' });
+            }
+
+            const friendList = user.friend_list;
+
+            // Find users who are friends with the user's friends (excluding the user and current friends)
+            const mutualConnections = await userCollection.aggregate([
+                {
+                    $match: {
+                        username: { $nin: [...friendList, user.username] }
+                    }
+                },
+                {
+                    $addFields: {
+                        mutualCount: {
+                            $size: {
+                                $setIntersection: [friendList, '$friend_list']
+                            }
+                        }
+                    }
+                },
+                {
+                    $sort: { mutualCount: -1 }
+                }
+            ]).toArray();
+            res.send(mutualConnections)
         })
 
         // Send a ping to confirm a successful connection
