@@ -260,6 +260,12 @@ async function run() {
                     }
                 },
                 {
+                    // Filter out users who have 0 mutual friends
+                    $match: {
+                        mutualCount: { $gt: 0 }
+                    }
+                },
+                {
                     $sort: { mutualCount: -1 }
                 }
             ]).toArray();
