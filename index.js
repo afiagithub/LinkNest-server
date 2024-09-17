@@ -213,6 +213,27 @@ async function run() {
             res.send(friendsData);
         })
 
+        app.patch("/unfriend", verifyToken, async (req, res) => {
+            const { user_username, frnd_username } = req.body;
+            const user = await userCollection.findOne({ username: user_username });
+            const friend = await userCollection.findOne({ username: frnd_username });
+            if (!user || !friend) {
+                return res.status(404).json({ error: 'User or Friend not found' });
+            }
+
+            const result1 = await userCollection.updateOne(
+                { _id: new ObjectId(user._id) }, //query
+                { $pull: { friend_list: friend.username } } // removing friend's username from user's friend list
+                
+            );
+            const result2 = await userCollection.updateOne(
+                { _id: new ObjectId(friend._id) }, //query
+                { $pull: { friend_list: user.username } }// removing user's username from friend's friend list
+                
+            );
+            res.send({ result1, result2 })
+        })
+
         // Send a ping to confirm a successful connection
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
